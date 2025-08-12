@@ -1,0 +1,1 @@
+rootProject.name = "manga-chapter-date-fixer"

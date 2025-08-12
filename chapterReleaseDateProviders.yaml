@@ -1,0 +1,35 @@
+releaseDateProviders:
+  mangaUpdates:
+    priority: 10
+    enabled: true
+    apiKey: ""
+    mediaType: "MANGA"
+  mangaDex:
+    priority: 20
+    enabled: false
+    coverLanguages: [ "en", "ja" ]
+  aniList:
+    priority: 30
+    enabled: false
+    clientId: ""
+    mediaType: "MANGA"
+  mal:
+    priority: 40
+    enabled: false
+    clientId: ""
+    mediaType: "MANGA"
+  bangumi:
+    priority: 50
+    enabled: false
+    token: ""
+  comicVine:
+    priority: 60
+    enabled: false
+    apiKey: ""
+  customCsv:
+    priority: 70
+    enabled: false
+    filePath: "./custom_dates.csv"
+defaultProvider: mangaUpdates
+updateIfDifferent: true
+dryRun: true

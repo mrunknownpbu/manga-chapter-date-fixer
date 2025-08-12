@@ -1,0 +1,23 @@
+# Kotlin/Gradle
+.gradle/
+build/
+out/
+*.iml
+*.ipr
+*.iws
+.idea/
+*.class
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local environment
+.env
+local.properties
+
+# Misc
+*.swp
