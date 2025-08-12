@@ -7,6 +7,7 @@ A tool to fetch and update manga/comic chapter release dates in Komga and Kavita
 - Fetches release dates from MangaUpdates, MangaDex, AniList, and more
 - Updates Komga and Kavita libraries via their APIs
 - Configurable provider priorities & dry-run support
+- **Web API server** for remote execution and monitoring
 - Native Ubuntu support with OpenJDK 17+ and Kotlin 1.9+
 - Docker support for containerized deployment
 
@@ -24,6 +25,44 @@ The application loads its configuration from a YAML file. You can specify the co
 3. **Default**: `chapterReleaseDateProviders.yaml` (in current directory)
 
 Edit the configuration file with your provider/API information before running.
+
+## Web API Server
+
+The application runs a web server on **port 1996** that exposes the following endpoints:
+
+### Endpoints
+
+- **GET /health** - Health check endpoint
+  ```bash
+  curl http://localhost:1996/health
+  ```
+  Response: `{"status":"ok"}`
+
+- **POST /run** - Trigger manga chapter date updates
+  ```bash
+  curl -X POST http://localhost:1996/run
+  ```
+  Response: 
+  ```json
+  {
+    "message": "Update completed successfully",
+    "summary": "Loading configuration from: chapterReleaseDateProviders.yaml\nUsing provider: mangaUpdates\n...Update details...\nSummary: Updated 5 Komga chapters and 3 Kavita chapters"
+  }
+  ```
+
+### Docker API Usage
+
+When running in Docker, expose port 1996:
+```bash
+# Run with API server exposed
+docker run -p 1996:1996 -v $(pwd)/config.yaml:/app/config.yaml manga-chapter-date-fixer
+
+# Health check
+curl http://localhost:1996/health
+
+# Trigger update
+curl -X POST http://localhost:1996/run
+```
 
 ## Ubuntu CLI Usage
 
@@ -50,17 +89,22 @@ java -version  # Should show version 17 or higher
    # Edit config.yaml with your API keys and settings
    ```
 
-3. **Run with default config:**
+3. **Run the web server:**
    ```bash
    ./gradlew run
    ```
+   The application will start a web server on port 1996.
 
-4. **Run with custom config:**
+4. **Use the API endpoints:**
    ```bash
-   ./gradlew run --args="config.yaml"
+   # Health check
+   curl http://localhost:1996/health
+   
+   # Trigger update
+   curl -X POST http://localhost:1996/run
    ```
 
-5. **Run with environment variable:**
+5. **Run with custom config (via environment variable):**
    ```bash
    CONFIG_PATH=config.yaml ./gradlew run
    ```
@@ -90,17 +134,21 @@ docker build -t myuser/manga-chapter-date-fixer:v1.0 .
 
 1. **Run with default config (mounted):**
    ```bash
-   docker run -v $(pwd)/chapterReleaseDateProviders.yaml:/app/chapterReleaseDateProviders.yaml manga-chapter-date-fixer
+   docker run -p 1996:1996 -v $(pwd)/chapterReleaseDateProviders.yaml:/app/chapterReleaseDateProviders.yaml manga-chapter-date-fixer
    ```
 
 2. **Run with custom config file:**
    ```bash
-   docker run -v $(pwd)/my-config.yaml:/app/config.yaml -e CONFIG_PATH=/app/config.yaml manga-chapter-date-fixer
+   docker run -p 1996:1996 -v $(pwd)/my-config.yaml:/app/config.yaml -e CONFIG_PATH=/app/config.yaml manga-chapter-date-fixer
    ```
 
-3. **Run with config passed as argument:**
+3. **Use the API endpoints:**
    ```bash
-   docker run -v $(pwd)/my-config.yaml:/app/my-config.yaml manga-chapter-date-fixer my-config.yaml
+   # Health check
+   curl http://localhost:1996/health
+   
+   # Trigger update
+   curl -X POST http://localhost:1996/run
    ```
 
 ### Automated Build and Push Script
@@ -148,11 +196,11 @@ Use the provided script:
 
 Once pushed, anyone can run your image:
 ```bash
-# Pull and run the latest version
-docker run -v $(pwd)/config.yaml:/app/config.yaml myuser/manga-chapter-date-fixer:latest
+# Pull and run the latest version with API exposed
+docker run -p 1996:1996 -v $(pwd)/config.yaml:/app/config.yaml myuser/manga-chapter-date-fixer:latest
 
 # Run specific version
-docker run -v $(pwd)/config.yaml:/app/config.yaml myuser/manga-chapter-date-fixer:v1.0
+docker run -p 1996:1996 -v $(pwd)/config.yaml:/app/config.yaml myuser/manga-chapter-date-fixer:v1.0
 ```
 
 ## Development

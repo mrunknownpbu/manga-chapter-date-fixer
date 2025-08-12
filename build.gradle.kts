@@ -13,6 +13,12 @@ dependencies {
     implementation("org.yaml:snakeyaml:2.2")
     // For HTTP requests (add your favorite: Ktor, OkHttp, etc.)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Ktor server dependencies
+    implementation("io.ktor:ktor-server-core:2.3.6")
+    implementation("io.ktor:ktor-server-netty:2.3.6")
+    implementation("io.ktor:ktor-server-content-negotiation:2.3.6")
+    implementation("io.ktor:ktor-serialization-jackson:2.3.6")
 }
 
 sourceSets {
