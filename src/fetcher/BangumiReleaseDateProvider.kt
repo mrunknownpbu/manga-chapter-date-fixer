@@ -6,8 +6,8 @@ class BangumiReleaseDateProvider(
 ) : ReleaseDateProvider {
     override val name = "bangumi"
 
-    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): String? {
+    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): ReleaseDateFinding? {
         println("Fetching release date from Bangumi for $seriesTitle Chapter $chapterNumber")
-        return null // Implement API logic
+        return null // TODO: Implement API logic returning ReleaseDateFinding
     }
 }
