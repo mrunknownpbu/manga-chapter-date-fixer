@@ -4,7 +4,14 @@ import komga.KomgaApi
 import kavita.KavitaApi
 
 fun main(args: Array<String>) {
-    val configPath = args.getOrNull(0) ?: "chapterReleaseDateProviders.yaml"
+    // Priority: CLI argument > environment variable > default
+    val configPath = when {
+        args.isNotEmpty() -> args[0]
+        System.getenv("CONFIG_PATH") != null -> System.getenv("CONFIG_PATH")
+        else -> "chapterReleaseDateProviders.yaml"
+    }
+    
+    println("Loading configuration from: $configPath")
     val config = ReleaseDateProvidersConfig.load(configPath)
 
     val komgaApi = KomgaApi(baseUrl = "http://localhost:25600", apiKey = "YOUR_KOMGA_API_KEY")

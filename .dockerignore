@@ -1,0 +1,31 @@
+# Gradle build output
+build/
+.gradle/
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/
+
+# Logs
+*.log
+
+# Local environment
+.env
+local.properties
+
+# Misc
+*.swp
+*.tmp
+
+# Don't include the Docker files themselves
+Dockerfile
+.dockerignore
