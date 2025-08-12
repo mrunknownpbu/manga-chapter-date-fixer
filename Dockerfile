@@ -30,5 +30,8 @@ COPY chapterReleaseDateProviders.yaml ./
 # Set default config path for container usage
 ENV CONFIG_PATH=/app/chapterReleaseDateProviders.yaml
 
+# Expose the web server port
+EXPOSE 1996
+
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 CMD []
