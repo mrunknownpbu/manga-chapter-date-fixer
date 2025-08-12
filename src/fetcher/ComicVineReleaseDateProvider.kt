@@ -6,8 +6,8 @@ class ComicVineReleaseDateProvider(
 ) : ReleaseDateProvider {
     override val name = "comicVine"
 
-    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): String? {
+    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): ReleaseDateFinding? {
         println("Fetching release date from ComicVine for $seriesTitle Chapter $chapterNumber")
-        return null // Implement API logic
+        return null // TODO: Implement API logic returning ReleaseDateFinding
     }
 }

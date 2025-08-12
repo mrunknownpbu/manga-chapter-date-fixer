@@ -21,8 +21,16 @@ class CustomCsvReleaseDateProvider(
         }
     }
 
-    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): String? {
+    override fun fetchReleaseDate(seriesTitle: String, chapterNumber: String): ReleaseDateFinding? {
         println("Fetching release date from custom CSV for $seriesTitle Chapter $chapterNumber")
-        return cache[seriesTitle to chapterNumber]
+        val raw = cache[seriesTitle to chapterNumber] ?: return null
+        return ReleaseDateFinding(
+            seriesTitle = seriesTitle,
+            chapterNumber = chapterNumber,
+            normalizedDate = raw,
+            rawDate = raw,
+            source = name,
+            confidence = 0.9
+        )
     }
 }

@@ -12,14 +12,62 @@ import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.serialization.jackson.*
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
+import java.time.LocalDate
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+
+// Simple normalization: accept ISO-8601 date or datetime and output YYYY-MM-DD
+private fun normalizeDate(input: String): String? {
+    val dateFormats = listOf(
+        DateTimeFormatter.ISO_LOCAL_DATE,
+        DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+        DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    )
+    for (fmt in dateFormats) {
+        try {
+            return when (fmt) {
+                DateTimeFormatter.ISO_LOCAL_DATE -> LocalDate.parse(input, fmt).toString()
+                DateTimeFormatter.ISO_OFFSET_DATE_TIME -> OffsetDateTime.parse(input, fmt).toLocalDate().toString()
+                DateTimeFormatter.ISO_LOCAL_DATE_TIME -> java.time.LocalDateTime.parse(input, fmt).toLocalDate().toString()
+                else -> null
+            }
+        } catch (_: DateTimeParseException) { /* try next */ }
+    }
+    return null
+}
 
 data class HealthResponse(val status: String)
 data class RunResponse(val message: String, val summary: String)
 
+data class UpdateResultSummary(
+    val komgaUpdated: Int,
+    val kavitaUpdated: Int,
+    val attempts: List<String>
+)
+
+private fun fetchWithFallback(
+    providers: List<ReleaseDateProvider>,
+    title: String,
+    chapter: String,
+    attempts: MutableList<String>
+): ReleaseDateFinding? {
+    for (provider in providers) {
+        val finding = provider.fetchReleaseDate(title, chapter)
+        attempts.add("${provider.name}: ${finding?.normalizedDate ?: "no-match"}")
+        if (finding != null) {
+            val normalized = normalizeDate(finding.normalizedDate)
+            if (normalized != null) {
+                return finding.copy(normalizedDate = normalized)
+            }
+        }
+    }
+    return null
+}
+
 fun runUpdate(configPath: String): String {
     val results = StringBuilder()
     
-    // Use the passed configPath parameter
     val actualConfigPath = configPath.ifEmpty { "chapterReleaseDateProviders.yaml" }
     
     results.appendLine("Loading configuration from: $actualConfigPath")
@@ -50,12 +98,13 @@ fun runUpdate(configPath: String): String {
         config.releaseDateProviders["customCsv"]?.let {
             if (it.filePath != null) CustomCsvReleaseDateProvider(priority = it.priority, filePath = it.filePath) else null
         }
-    ).sortedBy { it.priority }
+    )
+        .filter { config.releaseDateProviders[it.name]?.enabled == true }
+        .sortedBy { it.priority }
 
-    val provider = providers.firstOrNull { config.releaseDateProviders[it.name]?.enabled == true }
-        ?: error("No enabled release date provider found")
+    if (providers.isEmpty()) error("No enabled release date provider found")
 
-    results.appendLine("Using provider: ${provider.name}")
+    results.appendLine("Using providers (by priority): ${providers.joinToString { it.name }}")
 
     var komgaUpdates = 0
     var kavitaUpdates = 0
@@ -63,11 +112,14 @@ fun runUpdate(configPath: String): String {
     // Komga update
     for (series in komgaApi.getSeries()) {
         for (chapter in series.chapters) {
-            val fetchedDate = provider.fetchReleaseDate(series.title, chapter.number)
-            if (fetchedDate != null && (config.updateIfDifferent && chapter.releaseDate != fetchedDate)) {
-                if (!config.dryRun) komgaApi.updateChapterReleaseDate(chapter.id, fetchedDate)
-                results.appendLine("Komga: Updated ${series.title} Chapter ${chapter.number}: $fetchedDate")
+            val attempts = mutableListOf<String>()
+            val finding = fetchWithFallback(providers, series.title, chapter.number, attempts)
+            if (finding != null && (config.updateIfDifferent && chapter.releaseDate != finding.normalizedDate)) {
+                if (!config.dryRun) komgaApi.updateChapterReleaseDate(chapter.id, finding.normalizedDate)
+                results.appendLine("Komga: Updated ${series.title} Chapter ${chapter.number}: ${finding.normalizedDate} (${finding.source}, conf=${finding.confidence})")
                 komgaUpdates++
+            } else {
+                results.appendLine("Komga: No update for ${series.title} Chapter ${chapter.number} [${attempts.joinToString(" | ")}]")
             }
         }
     }
@@ -75,11 +127,14 @@ fun runUpdate(configPath: String): String {
     // Kavita update
     for (series in kavitaApi.getSeries()) {
         for (chapter in series.chapters) {
-            val fetchedDate = provider.fetchReleaseDate(series.title, chapter.number)
-            if (fetchedDate != null && (config.updateIfDifferent && chapter.releaseDate != fetchedDate)) {
-                if (!config.dryRun) kavitaApi.updateChapterReleaseDate(chapter.id, fetchedDate)
-                results.appendLine("Kavita: Updated ${series.title} Chapter ${chapter.number}: $fetchedDate")
+            val attempts = mutableListOf<String>()
+            val finding = fetchWithFallback(providers, series.title, chapter.number, attempts)
+            if (finding != null && (config.updateIfDifferent && chapter.releaseDate != finding.normalizedDate)) {
+                if (!config.dryRun) kavitaApi.updateChapterReleaseDate(chapter.id, finding.normalizedDate)
+                results.appendLine("Kavita: Updated ${series.title} Chapter ${chapter.number}: ${finding.normalizedDate} (${finding.source}, conf=${finding.confidence})")
                 kavitaUpdates++
+            } else {
+                results.appendLine("Kavita: No update for ${series.title} Chapter ${chapter.number} [${attempts.joinToString(" | ")}]")
             }
         }
     }
@@ -89,7 +144,6 @@ fun runUpdate(configPath: String): String {
 }
 
 fun main(args: Array<String>) {
-    // Priority: CLI argument > environment variable > default
     val configPath = when {
         args.isNotEmpty() -> args[0]
         System.getenv("CONFIG_PATH") != null -> System.getenv("CONFIG_PATH")
