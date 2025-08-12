@@ -15,6 +15,14 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
+sourceSets {
+    main {
+        kotlin {
+            srcDirs("src")
+        }
+    }
+}
+
 application {
     mainClass.set("MainKt")
 }
