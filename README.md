@@ -8,6 +8,7 @@ A tool to fetch and update manga/comic chapter release dates in Komga and Kavita
 - Updates Komga and Kavita libraries via their APIs
 - Configurable provider priorities & dry-run support
 - **Web API server** for remote execution and monitoring
+- **Preview and targeted update endpoints** for userscript/browser integration
 - Native Ubuntu support with OpenJDK 17+ and Kotlin 1.9+
 - Docker support for containerized deployment
 
@@ -38,30 +39,56 @@ The application runs a web server on **port 1996** that exposes the following en
   ```
   Response: `{"status":"ok"}`
 
-- **POST /run** - Trigger manga chapter date updates
+- **POST /run** - Trigger library-wide chapter date updates
   ```bash
   curl -X POST http://localhost:1996/run
   ```
-  Response: 
-  ```json
-  {
-    "message": "Update completed successfully",
-    "summary": "Loading configuration from: chapterReleaseDateProviders.yaml\nUsing provider: mangaUpdates\n...Update details...\nSummary: Updated 5 Komga chapters and 3 Kavita chapters"
-  }
+
+- **GET /preview?title=...&chapter=...** - Preview best date and attempts for a single chapter
+  ```bash
+  curl "http://localhost:1996/preview?title=One%20Piece&chapter=1000"
+  ```
+  Response includes `best` structured finding and `attempts`.
+
+- **POST /update-chapter?library=komga|kavita&title=...&chapter=...** - Update a specific chapter
+  ```bash
+  curl -X POST "http://localhost:1996/update-chapter?library=komga&title=One%20Piece&chapter=1000"
   ```
 
-### Docker API Usage
+### Userscript (similar to @Snd-R/komf-userscript)
 
-When running in Docker, expose port 1996:
-```bash
-# Run with API server exposed
-docker run -p 1996:1996 -v $(pwd)/config.yaml:/app/config.yaml manga-chapter-date-fixer
+You can integrate with Komga/Kavita UIs using a Tampermonkey userscript that calls `/preview` and `/update-chapter`.
 
-# Health check
-curl http://localhost:1996/health
-
-# Trigger update
-curl -X POST http://localhost:1996/run
+Example snippet:
+```javascript
+// ==UserScript==
+// @name         Manga Chapter Date Fixer Helper
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @match        http://*/series/*
+// @match        http://*/manga/*
+// @grant        GM_xmlhttpRequest
+// ==/UserScript==
+(function() {
+  const API = 'http://localhost:1996';
+  function call(endpoint, method='GET') {
+    return fetch(endpoint, { method }).then(r=>r.json());
+  }
+  // Example button that previews date for visible title/chapter
+  function addButton() {
+    const title = document.querySelector('h1')?.textContent?.trim();
+    const chapter = document.querySelector('[data-chapter]')?.getAttribute('data-chapter');
+    if (!title || !chapter) return;
+    const btn = document.createElement('button');
+    btn.textContent = 'Preview Release Date';
+    btn.onclick = async () => {
+      const res = await call(`${API}/preview?title=${encodeURIComponent(title)}&chapter=${encodeURIComponent(chapter)}`);
+      alert(`Best: ${res.best?.normalizedDate || 'N/A'}\nSource: ${res.best?.source || '-'}\nAttempts: ${res.attempts?.join(' | ')}`);
+    };
+    document.body.appendChild(btn);
+  }
+  window.addEventListener('load', addButton);
+})();
 ```
 
 ## Ubuntu CLI Usage
@@ -240,6 +267,7 @@ docker run -p 1996:1996 -v $(pwd)/config.yaml:/app/config.yaml myuser/manga-chap
 - [ ] Add error handling and logging
 - [ ] Add tests and CI
 - [ ] Refine matching and update logic
+- [ ] Userscript: auto-detect series/chapter IDs in Komga/Kavita UI and call `/update-chapter`
 
 ## License
 
